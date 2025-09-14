@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Score Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hidden { display: none; }
+        .correct-answer { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
+        .wrong-answer { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        .disabled-option { pointer-events: none; opacity: 0.8; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container mx-auto max-w-2xl w-full">
+        
+        <div id="loading-spinner" class="text-center bg-white p-8 rounded-xl shadow-lg">
+            <svg class="animate-spin h-10 w-10 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-3 text-lg font-medium text-slate-600">Connecting to Server...</p>
+        </div>
+
+        <!-- Name Entry Screen -->
+        <div id="name-screen" class="hidden bg-white p-8 rounded-xl shadow-lg text-center">
+            <h1 class="text-3xl font-bold mb-4">High Score Challenge</h1>
+            <p class="text-slate-600 mb-6">Enter your name to play and get on the leaderboard!</p>
+            <input type="text" id="name-input" placeholder="Enter your name" class="w-full max-w-sm mx-auto p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+            <button id="start-quiz-btn" class="w-full max-w-sm mx-auto mt-4 bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-transform transform hover:scale-105 shadow-md">Start Quiz</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden bg-white p-8 rounded-xl shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold" id="question-counter"></h2>
+                <div class="text-lg font-semibold">Score: <span id="score-display">0</span></div>
+            </div>
+            <div class="bg-slate-50 p-6 rounded-lg mb-6">
+                <p id="question-text" class="text-2xl font-medium text-center"></p>
+            </div>
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div class="mt-8 text-center">
+                <button id="next-question-btn" class="hidden bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700">Next</button>
+            </div>
+        </div>
+
+        <!-- Final Score Screen -->
+        <div id="score-screen" class="hidden bg-white p-8 rounded-xl shadow-lg text-center">
+            <h1 class="text-4xl font-bold mb-2">Quiz Complete!</h1>
+            <div id="new-highscore-banner" class="hidden my-4 p-3 bg-yellow-200 text-yellow-800 font-semibold rounded-lg">🎉 New High Score! 🎉</div>
+            <div class="bg-indigo-50 p-8 rounded-xl my-6">
+                <p class="text-xl text-slate-700">Your Score This Round</p>
+                <p id="final-score" class="text-7xl font-extrabold text-indigo-600 my-2">0</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button id="view-leaderboard-btn" class="bg-slate-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-slate-700">View Leaderboard</button>
+                <button id="play-again-btn" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700">Play Again</button>
+            </div>
+        </div>
+
+        <!-- Leaderboard Screen -->
+        <div id="leaderboard-screen" class="hidden bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-center mb-6">Leaderboard</h1>
+            <div id="leaderboard-list" class="space-y-3">
+                <div class="text-center text-slate-500">Loading scores...</div>
+            </div>
+            <div class="mt-8 text-center">
+                <button id="leaderboard-play-again-btn" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES & CONFIG ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "...", projectId: "..." };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-highscore-quiz';
+
+        let app, db, auth;
+        let userId = null;
+        let userName = '';
+
+        const quizQuestions = [
+            { question: "What is 2 + 2?", options: ["3", "4", "5", "6"], correctAnswer: "4" },
+            { question: "What is the capital of Japan?", options: ["Beijing", "Seoul", "Tokyo", "Bangkok"], correctAnswer: "Tokyo" },
+            { question: "Which is the largest planet in our solar system?", options: ["Earth", "Jupiter", "Saturn", "Mars"], correctAnswer: "Jupiter" },
+            { question: "What is the boiling point of water in Celsius?", options: ["90°C", "100°C", "110°C", "120°C"], correctAnswer: "100°C" },
+            { question: "Who wrote 'Hamlet'?", options: ["Charles Dickens", "Leo Tolstoy", "William Shakespeare", "George Orwell"], correctAnswer: "William Shakespeare" }
+        ];
+        let currentQuestionIndex = 0;
+        let score = 0;
+
+        // --- DOM ELEMENTS ---
+        const screens = {
+            loading: document.getElementById('loading-spinner'),
+            name: document.getElementById('name-screen'),
+            quiz: document.getElementById('quiz-screen'),
+            score: document.getElementById('score-screen'),
+            leaderboard: document.getElementById('leaderboard-screen')
+        };
+        const nameInput = document.getElementById('name-input');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const questionCounter = document.getElementById('question-counter');
+        const scoreDisplay = document.getElementById('score-display');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const finalScore = document.getElementById('final-score');
+        const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
+        const playAgainBtns = [document.getElementById('play-again-btn'), document.getElementById('leaderboard-play-again-btn')];
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const newHighscoreBanner = document.getElementById('new-highscore-banner');
+
+        // --- INITIALIZATION ---
+        async function initialize() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setupAuthListener();
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                screens.loading.innerHTML = '<p class="text-red-500">Error connecting. Please refresh.</p>';
+            }
+        }
+
+        function setupAuthListener() {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    console.log("Authenticated User ID:", userId);
+                    showScreen('name');
+                    listenForLeaderboardUpdates();
+                } else {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined') { 
+                            await signInWithCustomToken(auth, __initial_auth_token); 
+                        } else { 
+                            await signInAnonymously(auth); 
+                        }
+                    } catch (error) {
+                        console.error("Anonymous sign-in failed:", error);
+                        screens.loading.innerHTML = '<p class="text-red-500">Authentication failed. Please refresh.</p>';
+                    }
+                }
+            });
+        }
+        
+        // --- SCREEN MANAGEMENT ---
+        function showScreen(screenName) {
+            Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+            if(screens[screenName]) screens[screenName].classList.remove('hidden');
+        }
+
+        // --- QUIZ LOGIC ---
+        function startQuiz() {
+            userName = nameInput.value.trim();
+            if (!userName) {
+                alert("Please enter a name!");
+                return;
+            }
+            newHighscoreBanner.classList.add('hidden');
+            currentQuestionIndex = 0;
+            score = 0;
+            scoreDisplay.textContent = score;
+            showScreen('quiz');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentQuestionIndex >= quizQuestions.length) {
+                showFinalScore();
+                return;
+            }
+            nextQuestionBtn.classList.add('hidden');
+            const question = quizQuestions[currentQuestionIndex];
+            questionText.textContent = question.question;
+            questionCounter.textContent = `Question ${currentQuestionIndex + 1} of ${quizQuestions.length}`;
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'p-4 border border-slate-300 rounded-lg text-left hover:bg-slate-100 transition';
+                button.onclick = () => selectAnswer(button, option, question.correctAnswer);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function selectAnswer(button, selectedOption, correctAnswer) {
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.classList.add('disabled-option');
+                if (btn.textContent === correctAnswer) btn.classList.add('correct-answer');
+            });
+            if (selectedOption === correctAnswer) {
+                score++;
+                scoreDisplay.textContent = score;
+            } else {
+                button.classList.add('wrong-answer');
+            }
+            nextQuestionBtn.classList.remove('hidden');
+        }
+
+        async function showFinalScore() {
+            finalScore.textContent = score;
+            showScreen('score');
+            await saveHighScoreToFirestore();
+        }
+
+        // --- FIRESTORE LOGIC ---
+        async function saveHighScoreToFirestore() {
+            if (!userId) return;
+
+            const scoreRef = doc(db, `/artifacts/${appId}/public/data/high_scores`, userId);
+            
+            try {
+                const docSnap = await getDoc(scoreRef);
+                const currentHighScore = docSnap.exists() ? docSnap.data().highScore : 0;
+
+                if (score > currentHighScore) {
+                    console.log(`New high score! ${score} > ${currentHighScore}`);
+                    newHighscoreBanner.classList.remove('hidden');
+                    await setDoc(scoreRef, {
+                        name: userName,
+                        highScore: score,
+                        userId: userId
+                    });
+                } else {
+                     console.log(`Score of ${score} did not beat high score of ${currentHighScore}`);
+                }
+            } catch (error) {
+                console.error("Error updating high score:", error);
+            }
+        }
+
+        function listenForLeaderboardUpdates() {
+            const scoresCollectionRef = collection(db, `/artifacts/${appId}/public/data/high_scores`);
+            onSnapshot(scoresCollectionRef, (querySnapshot) => {
+                const scoresData = [];
+                querySnapshot.forEach((doc) => scoresData.push(doc.data()));
+                scoresData.sort((a, b) => b.highScore - a.highScore);
+                displayLeaderboard(scoresData);
+            }, (error) => {
+                leaderboardList.innerHTML = '<div class="text-center text-red-500">Could not load leaderboard.</div>';
+            });
+        }
+        
+        function displayLeaderboard(scores) {
+            leaderboardList.innerHTML = '';
+            if (scores.length === 0) {
+                leaderboardList.innerHTML = '<div class="text-center text-slate-500">No scores yet. Be the first!</div>';
+                return;
+            }
+            scores.forEach((entry, index) => {
+                const isCurrentUser = entry.userId === userId;
+                const entryDiv = document.createElement('div');
+                entryDiv.className = `flex items-center justify-between p-3 rounded-lg ${isCurrentUser ? 'bg-indigo-100 border-2 border-indigo-400' : 'bg-slate-50'}`;
+                entryDiv.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <span class="font-bold text-lg w-10 text-center">#${index + 1}</span>
+                        <span class="font-medium text-slate-700">${entry.name} ${isCurrentUser ? '(You)' : ''}</span>
+                    </div>
+                    <span class="font-extrabold text-xl text-indigo-600">${entry.highScore}</span>`;
+                leaderboardList.appendChild(entryDiv);
+            });
+        }
+
+        // --- EVENT LISTENERS ---
+        startQuizBtn.addEventListener('click', startQuiz);
+        nextQuestionBtn.addEventListener('click', () => {
+            currentQuestionIndex++;
+            loadQuestion();
+        });
+        viewLeaderboardBtn.addEventListener('click', () => showScreen('leaderboard'));
+        playAgainBtns.forEach(btn => btn.addEventListener('click', () => showScreen('name')));
+
+        window.onload = initialize;
+    </script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal - Sign Up / Sign In</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-container {
+            transition: all 0.3s ease-in-out;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container mx-auto max-w-md w-full">
+        
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="text-center bg-white p-8 rounded-xl shadow-lg">
+            <svg class="animate-spin h-10 w-10 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-3 text-lg font-medium text-slate-600">Connecting to Server...</p>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="register-screen" class="hidden form-container bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold mb-2 text-center text-slate-800">Create Account</h1>
+            <p class="text-center text-slate-500 mb-6">Enter your details to register.</p>
+            <form id="register-form" class="space-y-4">
+                <input type="text" id="register-name" placeholder="Full Name" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <input type="tel" id="register-mobile" placeholder="Mobile Number" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <input type="text" id="register-address" placeholder="Address" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <input type="text" id="register-school" placeholder="School Name" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <input type="text" id="register-class" placeholder="Class (e.g., 10th)" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <input type="password" id="register-password" placeholder="Password" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-transform transform hover:scale-105 shadow-md">Register</button>
+            </form>
+            <p id="register-error" class="text-red-500 mt-4 text-sm h-5 text-center"></p>
+            <p class="mt-6 text-center text-sm">
+                Already have an account? 
+                <button id="show-login" class="font-semibold text-indigo-600 hover:underline">Sign In</button>
+            </p>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-screen" class="hidden form-container bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold mb-2 text-center text-slate-800">Welcome Back!</h1>
+            <p class="text-center text-slate-500 mb-6">Sign in to your account.</p>
+            <form id="login-form" class="space-y-4">
+                <input type="tel" id="login-mobile" placeholder="Mobile Number" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <input type="password" id="login-password" placeholder="Password" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition">
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-transform transform hover:scale-105 shadow-md">Sign In</button>
+            </form>
+            <p id="login-error" class="text-red-500 mt-4 text-sm h-5 text-center"></p>
+            <p class="mt-6 text-center text-sm">
+                Don't have an account? 
+                <button id="show-register" class="font-semibold text-indigo-600 hover:underline">Register Now</button>
+            </p>
+        </div>
+
+        <!-- Success/Dashboard Screen -->
+        <div id="success-screen" class="hidden form-container bg-white p-8 rounded-xl shadow-lg text-left">
+            <h1 class="text-3xl font-bold text-green-600 mb-4 text-center">Login Successful!</h1>
+            <div class="bg-slate-50 p-6 rounded-lg my-6 space-y-3">
+                <h2 class="text-xl font-semibold mb-4 text-center">Your Profile</h2>
+                <div><strong>Name:</strong> <span id="user-name" class="text-slate-700"></span></div>
+                <div><strong>Mobile:</strong> <span id="user-mobile" class="text-slate-700"></span></div>
+                <div><strong>Address:</strong> <span id="user-address" class="text-slate-700"></span></div>
+                <div><strong>School:</strong> <span id="user-school" class="text-slate-700"></span></div>
+                <div><strong>Class:</strong> <span id="user-class" class="text-slate-700"></span></div>
+            </div>
+            <button id="sign-out-btn" class="w-full bg-red-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-600 transition-transform transform hover:scale-105 shadow-md">Sign Out</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIG & INITIALIZATION ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "...", projectId: "..." };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-student-portal';
+        let app, db;
+        
+        // --- DOM ELEMENTS ---
+        const screens = {
+            loading: document.getElementById('loading-spinner'),
+            register: document.getElementById('register-screen'),
+            login: document.getElementById('login-screen'),
+            success: document.getElementById('success-screen'),
+        };
+
+        const registerForm = document.getElementById('register-form');
+        const loginForm = document.getElementById('login-form');
+        const showLoginBtn = document.getElementById('show-login');
+        const showRegisterBtn = document.getElementById('show-register');
+        const signOutBtn = document.getElementById('sign-out-btn');
+        
+        const registerError = document.getElementById('register-error');
+        const loginError = document.getElementById('login-error');
+        
+        // --- SCREEN MANAGEMENT ---
+        function showScreen(screenName) {
+            Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+            if (screens[screenName]) screens[screenName].classList.remove('hidden');
+        }
+
+        // --- EVENT HANDLERS ---
+        showLoginBtn.addEventListener('click', () => showScreen('login'));
+        showRegisterBtn.addEventListener('click', () => showScreen('register'));
+        signOutBtn.addEventListener('click', handleSignOut);
+        registerForm.addEventListener('submit', handleRegistration);
+        loginForm.addEventListener('submit', handleLogin);
+
+        // --- REGISTRATION LOGIC ---
+        async function handleRegistration(event) {
+            event.preventDefault();
+            registerError.textContent = '';
+            
+            const name = document.getElementById('register-name').value.trim();
+            const mobile = document.getElementById('register-mobile').value.trim();
+            const address = document.getElementById('register-address').value.trim();
+            const school = document.getElementById('register-school').value.trim();
+            const userClass = document.getElementById('register-class').value.trim();
+            const password = document.getElementById('register-password').value.trim();
+
+            if (!name || !mobile || !address || !school || !userClass || !password) {
+                registerError.textContent = 'All fields are required.';
+                return;
+            }
+
+            try {
+                const usersRef = collection(db, `/artifacts/${appId}/public/data/student_users`);
+                const q = query(usersRef, where("mobile", "==", mobile));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    registerError.textContent = 'This mobile number is already registered.';
+                    return;
+                }
+
+                // IMPORTANT: In a real-world app, NEVER store passwords in plain text.
+                // Always hash passwords on the server side using a strong algorithm.
+                // This is a simplified example for demonstration.
+                const newUserData = { name, mobile, address, school, userClass, password };
+                const newDocRef = doc(usersRef); // Automatically generate a new ID
+                
+                await setDoc(newDocRef, newUserData);
+                
+                alert('Registration successful! Please sign in.');
+                showScreen('login');
+                registerForm.reset();
+
+            } catch (error) {
+                console.error("Registration Error: ", error);
+                registerError.textContent = 'Registration failed. Please try again.';
+            }
+        }
+
+        // --- LOGIN LOGIC ---
+        async function handleLogin(event) {
+            event.preventDefault();
+            loginError.textContent = '';
+
+            const mobile = document.getElementById('login-mobile').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+
+            if (!mobile || !password) {
+                loginError.textContent = 'Mobile number and password are required.';
+                return;
+            }
+
+            try {
+                const usersRef = collection(db, `/artifacts/${appId}/public/data/student_users`);
+                const q = query(usersRef, where("mobile", "==", mobile));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    loginError.textContent = 'No account found with this mobile number.';
+                    return;
+                }
+
+                const userData = querySnapshot.docs[0].data();
+                
+                if (userData.password === password) {
+                    // Successful login
+                    displaySuccessScreen(userData);
+                } else {
+                    loginError.textContent = 'Incorrect password.';
+                }
+
+            } catch (error) {
+                console.error("Login Error: ", error);
+                loginError.textContent = 'Login failed. Please try again.';
+            }
+        }
+
+        // --- SUCCESS & SIGN OUT ---
+        function displaySuccessScreen(userData) {
+            document.getElementById('user-name').textContent = userData.name;
+            document.getElementById('user-mobile').textContent = userData.mobile;
+            document.getElementById('user-address').textContent = userData.address;
+            document.getElementById('user-school').textContent = userData.school;
+            document.getElementById('user-class').textContent = userData.userClass;
+            showScreen('success');
+        }
+
+        function handleSignOut() {
+            loginForm.reset();
+            showScreen('login');
+        }
+
+        // --- APP INITIALIZATION ---
+        async function initialize() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                console.log("Firebase initialized successfully.");
+                showScreen('register'); // Start on the register screen by default
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                screens.loading.innerHTML = '<p class="text-red-500 font-bold">Error connecting to the server. Please check your configuration.</p>';
+            }
+        }
+
+        // Start the application once the window is loaded
+        window.onload = initialize;
+    </script>
+</body>
+</html>

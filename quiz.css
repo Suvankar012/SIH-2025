@@ -1,0 +1,20 @@
+body {
+            font-family: 'Inter', sans-serif;
+        }
+        .hidden {
+            display: none;
+        }
+        .correct-answer {
+            background-color: #22c55e !important; /* Green 500 */
+            color: white !important;
+            border-color: #16a34a !important;
+        }
+        .wrong-answer {
+            background-color: #ef4444 !important; /* Red 500 */
+            color: white !important;
+            border-color: #dc2626 !important;
+        }
+        .disabled-option {
+            pointer-events: none;
+            opacity: 0.8;
+        }
